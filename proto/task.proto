@@ -1,0 +1,98 @@
+// proto/task.proto
+//
+// THIS FILE IS THE CONTRACT. Everything else (Go server stubs, Go client
+// stubs, the wire format, the field numbering) is generated from this file
+// by `protoc`. If you change this file you regenerate the code; you do NOT
+// hand-edit the generated Go.
+
+// proto3 = the third major version of the protobuf language.
+// In interviews if someone says "are you using proto3 or proto2?" — the
+// honest answer is "proto3, like everyone in the last decade." proto2 had
+// required/optional keywords; proto3 dropped them by default.
+syntax = "proto3";
+
+// `package` is the protobuf-level namespace. It prevents name collisions
+// when two .proto files define a message with the same name.
+package task;
+
+// `go_package` tells `protoc-gen-go` where to PUT the generated Go file
+// and what its import path will be. Without this you'll get a warning and
+// generated code that doesn't compile cleanly.
+//
+// The format is: <import-path>;<package-name>
+// Here: import path is github.com/moonyango/taskbridge/proto/taskpb
+//       package name in Go will be "taskpb"
+option go_package = "github.com/moonyango/taskbridge/proto/taskpb;taskpb";
+
+// ---------------------------------------------------------------------------
+// SERVICES
+// ---------------------------------------------------------------------------
+// A `service` defines a set of RPC methods. The code generator turns this
+// block into a Go interface on the server side and a Go client struct on
+// the client side. You implement the interface; you call methods on the
+// client struct. That's it.
+//
+// Naming convention: <Domain>Service, e.g. TaskAnalyticsService.
+service TaskAnalyticsService {
+  // One RPC = one method. The pattern is:
+  //   rpc <MethodName>(<RequestMessage>) returns (<ResponseMessage>);
+  //
+  // GetTaskStats takes an Empty (no input) and returns TaskStats.
+  // The Empty type is just an empty message — same role as `void` in C.
+  rpc GetTaskStats(Empty) returns (TaskStats);
+
+  // RPC for fetching a single task's completion status. Demonstrates passing
+  // a request with one field — the more common case in real APIs.
+  rpc GetTaskCompletion(TaskID) returns (TaskCompletion);
+}
+
+// ---------------------------------------------------------------------------
+// MESSAGES
+// ---------------------------------------------------------------------------
+// A `message` is a struct. It is THE only data type you can pass over gRPC.
+// Even if a method takes no input, you must pass an empty message.
+
+message Empty {}
+
+// TaskID — a wrapper around a single int64.
+//
+// Why wrap? Because gRPC methods must take a MESSAGE, not a raw int. The
+// upside: if you later need to add fields (e.g. include_archived bool), you
+// extend the message without breaking the method signature.
+message TaskID {
+  int64 id = 1;  // see "field numbers" note below
+}
+
+// TaskStats — what GetTaskStats returns.
+message TaskStats {
+  int32 total_tasks     = 1;
+  int32 completed_tasks = 2;
+  int32 pending_tasks   = 3;
+}
+
+message TaskCompletion {
+  int64  id        = 1;
+  bool   completed = 2;
+  string title     = 3;
+}
+
+// ---------------------------------------------------------------------------
+// THE NUMBERS NEXT TO EACH FIELD ARE NOT INDEXES.
+// ---------------------------------------------------------------------------
+// They are FIELD TAGS used in the binary wire format. They are how protobuf
+// encodes "this byte block is field 2" without sending the field name.
+// That's the whole reason protobuf is small.
+//
+// RULES YOU WILL BE ASKED ABOUT:
+//   1. Numbers must be unique within a message.
+//   2. Numbers 1-15 take 1 byte to encode; 16+ take 2 bytes. Put frequently-
+//      used fields in 1-15.
+//   3. ONCE ASSIGNED, A NUMBER MUST NEVER BE REUSED OR CHANGED, even if you
+//      remove the field. If you delete `int32 pending_tasks = 3;` and later
+//      add `string region = 3;`, every old client will misread the bytes.
+//      For removed fields, use `reserved 3;` to lock the number.
+//   4. Changing the FIELD NAME is fine (it's not on the wire).
+//   5. Changing the TYPE is usually NOT fine (different wire format).
+//
+// These rules are why protobuf "just works" across versions — they enforce
+// forward and backward compatibility by construction.
